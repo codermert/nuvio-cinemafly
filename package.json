@@ -1,0 +1,13 @@
+{
+  "name": "nuvio-cinemafly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CinemaFly — Nuvio plugin deposu (Türkçe stream scrapers)",
+  "scripts": {
+    "build": "node build.js",
+    "build:min": "node build.js --minify"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

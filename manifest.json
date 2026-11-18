@@ -1,0 +1,36 @@
+{
+  "name": "CinemaFly",
+  "version": "1.0.0",
+  "author": "codermert",
+  "description": "CinemaFly — Türkçe film ve dizi stream motorları (Nuvio plugin deposu)",
+  "scrapers": [
+    {
+      "id": "cinemafly_dizimom",
+      "name": "CinemaFly · DiziMom",
+      "description": "ddizimom.net — Pilavyer HLS, Türkçe dublaj ve orijinal ses (cihazda çalışır).",
+      "version": "1.0.0",
+      "author": "codermert",
+      "supportedTypes": ["movie", "tv", "series"],
+      "filename": "providers/cinemafly-dizimom.js",
+      "enabled": true,
+      "formats": ["hls", "m3u8"],
+      "logo": "https://www.google.com/s2/favicons?domain=ddizimom.net&sz=128",
+      "contentLanguage": ["tr"],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "cinemafly_dizibox",
+      "name": "CinemaFly · DiziBOX",
+      "description": "ddizibox.net — Pilavyer HLS, dublaj ve altyazı seçenekleri.",
+      "version": "1.0.0",
+      "author": "codermert",
+      "supportedTypes": ["movie", "tv", "series"],
+      "filename": "providers/cinemafly-dizibox.js",
+      "enabled": true,
+      "formats": ["hls", "m3u8"],
+      "logo": "https://www.google.com/s2/favicons?domain=ddizibox.net&sz=128",
+      "contentLanguage": ["tr"],
+      "supportsExternalPlayer": true
+    }
+  ]
+}
