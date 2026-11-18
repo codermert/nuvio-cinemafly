@@ -103,6 +103,7 @@ var require_cinemeta = __commonJS({
           episodeNum = parseInt(tail[3], 10);
         }
       }
+      if (mediaType === "series" || mediaType === "show") mediaType = "tv";
       if (!mediaType) {
         mediaType = seasonNum !== void 0 && episodeNum !== void 0 ? "tv" : "movie";
       }

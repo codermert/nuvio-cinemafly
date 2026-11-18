@@ -148,6 +148,7 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
         tmdbId = parts[0];
       }
     }
+    if (mediaType === 'series' || mediaType === 'show') mediaType = 'tv';
     if (!mediaType) {
       mediaType =
         seasonNum !== undefined && episodeNum !== undefined ? 'tv' : 'movie';

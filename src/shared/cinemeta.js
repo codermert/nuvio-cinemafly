@@ -71,6 +71,7 @@ function parseStreamArgs(tmdbId, mediaType, seasonNum, episodeNum) {
       episodeNum = parseInt(tail[3], 10);
     }
   }
+  if (mediaType === 'series' || mediaType === 'show') mediaType = 'tv';
   if (!mediaType) {
     mediaType =
       seasonNum !== undefined && episodeNum !== undefined ? 'tv' : 'movie';
