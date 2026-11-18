@@ -1,6 +1,6 @@
 /**
  * CinemaFly Nuvio — cinemafly-dizibox
- * v1.0.0
+ * v1.0.1
  */
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -231,6 +231,40 @@ var require_pilavyer = __commonJS({
   }
 });
 
+// src/shared/config.js
+var require_config = __commonJS({
+  "src/shared/config.js"(exports2, module2) {
+    function loadConfig2() {
+      return Promise.resolve({});
+    }
+    function val2() {
+      return void 0;
+    }
+    function wrapAll2(obj, pre) {
+      var out = {};
+      for (var k in obj) {
+        if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+        if (typeof obj[k] === "function") {
+          (function(name, fn) {
+            out[name] = function() {
+              var self = this;
+              var args = arguments;
+              var chain = pre ? pre() : Promise.resolve();
+              return chain.then(function() {
+                return fn.apply(self, args);
+              });
+            };
+          })(k, obj[k]);
+        } else {
+          out[k] = obj[k];
+        }
+      }
+      return out;
+    }
+    module2.exports = { loadConfig: loadConfig2, val: val2, wrapAll: wrapAll2 };
+  }
+});
+
 // src/cinemafly-dizibox/index.js
 var { sortStreamsByQuality } = require_quality();
 var {
@@ -336,8 +370,21 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     }
   });
 }
+var { wrapAll, loadConfig, val } = require_config();
+var _cfgReady = loadConfig();
+if (typeof getStreams === "function") {
+  _orig = getStreams;
+  getStreams = function() {
+    return __async(this, arguments, function* () {
+      return sortStreamsByQuality(yield _orig.apply(this, arguments));
+    });
+  };
+}
+var _orig;
 if (typeof module !== "undefined") {
-  module.exports = { getStreams };
+  module.exports = wrapAll({ getStreams }, function() {
+    return _cfgReady;
+  });
 }
 if (typeof globalThis !== "undefined") {
   globalThis.getStreams = getStreams;

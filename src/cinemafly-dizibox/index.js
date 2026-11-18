@@ -113,8 +113,20 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
   }
 }
 
+const { wrapAll, loadConfig, val } = require('../shared/config.js');
+
+var _cfgReady = loadConfig();
+if (typeof getStreams === 'function') {
+  var _orig = getStreams;
+  getStreams = async function () {
+    return sortStreamsByQuality(await _orig.apply(this, arguments));
+  };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { getStreams };
+  module.exports = wrapAll({ getStreams }, function () {
+    return _cfgReady;
+  });
 }
 if (typeof globalThis !== 'undefined') {
   globalThis.getStreams = getStreams;

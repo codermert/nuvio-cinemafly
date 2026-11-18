@@ -1,6 +1,6 @@
 {
   "name": "nuvio-cinemafly",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "CinemaFly — Nuvio plugin deposu (Türkçe stream scrapers)",
   "scripts": {

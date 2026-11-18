@@ -1,6 +1,6 @@
 /**
  * CinemaFly Nuvio — cinemafly-dizimom
- * v1.0.0
+ * v1.0.1
  */
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -50,6 +50,40 @@ var require_quality = __commonJS({
   }
 });
 
+// src/shared/config.js
+var require_config = __commonJS({
+  "src/shared/config.js"(exports2, module2) {
+    function loadConfig2() {
+      return Promise.resolve({});
+    }
+    function val2() {
+      return void 0;
+    }
+    function wrapAll2(obj, pre) {
+      var out = {};
+      for (var k in obj) {
+        if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+        if (typeof obj[k] === "function") {
+          (function(name, fn) {
+            out[name] = function() {
+              var self = this;
+              var args = arguments;
+              var chain = pre ? pre() : Promise.resolve();
+              return chain.then(function() {
+                return fn.apply(self, args);
+              });
+            };
+          })(k, obj[k]);
+        } else {
+          out[k] = obj[k];
+        }
+      }
+      return out;
+    }
+    module2.exports = { loadConfig: loadConfig2, val: val2, wrapAll: wrapAll2 };
+  }
+});
+
 // src/shared/cinemeta.js
 var require_cinemeta = __commonJS({
   "src/shared/cinemeta.js"(exports2, module2) {
@@ -85,10 +119,10 @@ var require_cinemeta = __commonJS({
       if (!str) return "";
       return String(str).toLowerCase().replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ").trim();
     }
-    function titleToSlug2(str) {
+    function titleToSlug(str) {
       return normalizeTitle2(str).replace(/\s+/g, "-").replace(/^-|-$/g, "");
     }
-    function parseStreamArgs2(tmdbId, mediaType, seasonNum, episodeNum) {
+    function parseStreamArgs(tmdbId, mediaType, seasonNum, episodeNum) {
       if (typeof tmdbId === "object" && tmdbId !== null) {
         mediaType = tmdbId.type || mediaType;
         seasonNum = tmdbId.season != null ? tmdbId.season : seasonNum;
@@ -111,235 +145,199 @@ var require_cinemeta = __commonJS({
     module2.exports = {
       resolveMediaInfo: resolveMediaInfo2,
       normalizeTitle: normalizeTitle2,
-      titleToSlug: titleToSlug2,
-      parseStreamArgs: parseStreamArgs2
+      titleToSlug,
+      parseStreamArgs
     };
-  }
-});
-
-// src/shared/pilavyer.js
-var require_pilavyer = __commonJS({
-  "src/shared/pilavyer.js"(exports2, module2) {
-    var UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-    function mapSubtitles(subs, referer) {
-      if (!Array.isArray(subs)) return [];
-      return subs.filter(function(s) {
-        return s && s.src;
-      }).map(function(s, i) {
-        var lang = s.lang || "tr";
-        return {
-          id: lang + "-" + i,
-          lang: lang === "tr" ? "tur" : lang === "en" ? "eng" : lang,
-          language: lang,
-          label: s.label || (lang === "tr" ? "T\xFCrk\xE7e" : lang),
-          url: s.src,
-          format: "vtt",
-          type: "text/vtt",
-          headers: { "User-Agent": UA2, Referer: referer }
-        };
-      });
-    }
-    function hasTrDub(audios) {
-      if (!Array.isArray(audios)) return false;
-      return audios.some(function(a) {
-        var t = ((a.label || "") + " " + (a.lang || "")).toLowerCase();
-        return /dublaj|türkçe|^tr\b/.test(t);
-      });
-    }
-    function hasOrig(audios) {
-      if (!Array.isArray(audios)) return false;
-      return audios.some(function(a) {
-        var t = ((a.label || "") + " " + (a.lang || "")).toLowerCase();
-        return /orijinal|english|^en\b/.test(t);
-      });
-    }
-    function streamsFromEpisodePage2(pageUrl, pageOrigin, prefix, providerTag) {
-      return __async(this, null, function* () {
-        var epRes = yield fetch(pageUrl, {
-          headers: { "User-Agent": UA2, Referer: pageOrigin + "/" }
-        });
-        if (!epRes.ok) return [];
-        var epHtml = yield epRes.text();
-        var pvMatch = epHtml.match(/data-pv=["']([a-zA-Z0-9_-]+)["']/i);
-        var coreMatch = epHtml.match(
-          /src=["'](https:\/\/[^"']*pilavyerplay[^"']*\/assets\/js\/(?:core|c)\.js)["']/i
-        );
-        if (!pvMatch) return [];
-        var playerBase = "https://play2.pilavyerplay.top";
-        if (coreMatch) {
-          playerBase = coreMatch[1].replace(/\/(?:e\/c|assets\/js\/core)\.js.*$/, "");
-        }
-        var sUrl = playerBase + "/assets/js/s.php?s=" + encodeURIComponent(pvMatch[1]);
-        var pRes = yield fetch(sUrl, {
-          headers: {
-            "User-Agent": UA2,
-            Referer: pageUrl,
-            Origin: pageOrigin
-          }
-        });
-        if (!pRes.ok) return [];
-        var pHtml = yield pRes.text();
-        var playerMatch = pHtml.match(/window\.__PLAYER__\s*=\s*(\{[\s\S]*?\});/);
-        if (!playerMatch) return [];
-        var pData;
-        try {
-          pData = JSON.parse(playerMatch[1]);
-        } catch (e) {
-          return [];
-        }
-        if (!pData || !pData.stream) return [];
-        var subs = mapSubtitles(pData.subs, sUrl);
-        var referer = sUrl;
-        var reqHeaders = {
-          "User-Agent": UA2,
-          Referer: referer,
-          Origin: pageOrigin
-        };
-        var hints = {
-          notWebReady: true,
-          proxyHeaders: { request: reqHeaders }
-        };
-        var out = [];
-        var dub = hasTrDub(pData.audios);
-        var orig = hasOrig(pData.audios);
-        function pushStream(label, quality) {
-          out.push({
-            name: providerTag,
-            title: "\u231C CinemaFly \xB7 " + providerTag + " \u231F | " + label + " (" + quality + " HLS)",
-            url: pData.stream,
-            quality,
-            format: "hls",
-            isHls: true,
-            headers: reqHeaders,
-            behaviorHints: hints,
-            provider: providerTag,
-            subtitles: subs
-          });
-        }
-        if (dub && orig) {
-          pushStream((prefix ? prefix + " \xB7 " : "") + "\u{1F1F9}\u{1F1F7} T\xFCrk\xE7e Dublaj", "720p");
-          pushStream((prefix ? prefix + " \xB7 " : "") + "\u{1F4AC} Orijinal + Altyaz\u0131", "720p");
-        } else if (subs.length) {
-          pushStream((prefix ? prefix + " \xB7 " : "") + "\u{1F4AC} T\xFCrk\xE7e Altyaz\u0131", "720p");
-        } else {
-          pushStream((prefix ? prefix + " \xB7 " : "") + "HD", "720p");
-        }
-        return out;
-      });
-    }
-    module2.exports = { streamsFromEpisodePage: streamsFromEpisodePage2, UA: UA2 };
   }
 });
 
 // src/cinemafly-dizimom/index.js
 var { sortStreamsByQuality } = require_quality();
-var {
-  resolveMediaInfo,
-  normalizeTitle,
-  titleToSlug,
-  parseStreamArgs
-} = require_cinemeta();
-var { streamsFromEpisodePage, UA } = require_pilavyer();
-var cheerio;
-try {
-  cheerio = require("cheerio-without-node-native");
-} catch (e) {
-  cheerio = null;
+var { loadConfig, val, wrapAll } = require_config();
+var { resolveMediaInfo, normalizeTitle } = require_cinemeta();
+var _cfgReady = null;
+function cfgReady() {
+  if (!_cfgReady) {
+    _cfgReady = loadConfig().then(function() {
+      var v = val("urls.series.dizimom.base");
+      if (v) BASE_URL = String(v).replace(/\/+$/, "");
+      if (HEADERS) HEADERS.Referer = BASE_URL + "/";
+    });
+  }
+  return _cfgReady;
 }
+var cheerio = require("cheerio-without-node-native");
 var BASE_URL = "https://ddizimom.net";
-var PROVIDER = "DiziMom";
-function directEpisodeUrl(info, season, episode) {
+var ID_PREFIX = "cinemafly_dizimom";
+var POSTER_FALLBACK = "https://www.google.com/s2/favicons?domain=ddizimom.net&sz=256";
+var HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Referer: "https://ddizimom.net/"
+};
+function resolvePilavyerStream(epUrl, titlePrefix) {
   return __async(this, null, function* () {
-    var slugs = [titleToSlug(info.origTitle), titleToSlug(info.title)].filter(
-      Boolean
-    );
-    var seen = {};
-    for (var i = 0; i < slugs.length; i++) {
-      if (seen[slugs[i]]) continue;
-      seen[slugs[i]] = true;
-      var url = BASE_URL + "/dizi/" + slugs[i] + "/sezon-" + season + "/bolum-" + episode;
-      var res = yield fetch(url, {
-        headers: { "User-Agent": UA, Referer: BASE_URL + "/" }
-      });
-      if (!res.ok) continue;
-      var html = yield res.text();
-      if (/data-pv=["'][^"']+["']/i.test(html)) return url;
-    }
-    return null;
-  });
-}
-function searchEpisodeUrl(title, season, episode, isMovie) {
-  return __async(this, null, function* () {
-    if (!cheerio) return null;
-    var searchUrl = BASE_URL + "/ara?q=" + encodeURIComponent(title);
-    var sRes = yield fetch(searchUrl, {
-      headers: { "User-Agent": UA, Referer: BASE_URL + "/" }
-    });
-    if (!sRes.ok) return null;
-    var html = yield sRes.text();
-    var $ = cheerio.load(html);
-    var normQ = normalizeTitle(title);
-    var href = "";
-    $("a").each(function(i, el) {
-      if (href) return;
-      var h = $(el).attr("href") || "";
-      var ok = isMovie ? h.indexOf("/film/") !== -1 : h.indexOf("/dizi/") !== -1 && h.indexOf("/sezon-") === -1;
-      if (!ok) return;
-      var text = normalizeTitle($(el).text());
-      if (text.indexOf(normQ) !== -1 || normQ.indexOf(text) !== -1) {
-        href = h;
+    try {
+      let oneStream2 = function(label) {
+        return {
+          name: "CinemaFly \xB7 DiziMom",
+          title: "\u231C CinemaFly \xB7 DiziMom \u231F | " + (titlePrefix ? titlePrefix + " \xB7 " : "") + label + " (720p HLS)",
+          url: pData.stream,
+          quality: "720p",
+          format: "hls",
+          isHls: true,
+          headers: reqHeaders,
+          behaviorHints: hints,
+          provider: "cinemafly_dizimom",
+          subtitles: subs
+        };
+      };
+      var oneStream = oneStream2;
+      var epRes = yield fetch(epUrl, { headers: HEADERS });
+      if (!epRes.ok) return [];
+      var epHtml = yield epRes.text();
+      var pvMatch = epHtml.match(/data-pv=["']([^"']+)["']/i);
+      var coreMatch = epHtml.match(
+        /src=["'](https:\/\/[^"']*pilavyerplay[^"']*\/assets\/js\/(?:core|c)\.js)["']/i
+      );
+      if (!pvMatch) return [];
+      var playerBase = "https://play2.pilavyerplay.top";
+      if (coreMatch) {
+        playerBase = coreMatch[1].replace(/\/(?:e\/c|assets\/js\/core)\.js.*$/, "");
       }
-    });
-    if (!href) return null;
-    if (isMovie) {
-      return href.startsWith("http") ? href : BASE_URL + (href.startsWith("/") ? "" : "/") + href;
+      var sPhpUrl = playerBase + "/assets/js/s.php?s=" + encodeURIComponent(pvMatch[1]);
+      var pRes = yield fetch(sPhpUrl, {
+        headers: {
+          "User-Agent": HEADERS["User-Agent"],
+          Referer: epUrl,
+          Origin: "https://ddizimom.net"
+        }
+      });
+      if (!pRes.ok) return [];
+      var pHtml = yield pRes.text();
+      var playerMatch = pHtml.match(/window\.__PLAYER__\s*=\s*(\{[\s\S]*?\});/);
+      if (!playerMatch) return [];
+      var pData = JSON.parse(playerMatch[1]);
+      if (!pData || !pData.stream) return [];
+      var subs = [];
+      if (Array.isArray(pData.subs)) {
+        subs = pData.subs.map(function(s, i) {
+          return {
+            id: s.lang || "tr-" + i,
+            lang: s.lang === "tr" ? "tur" : s.lang === "en" ? "eng" : s.lang || "tur",
+            language: s.lang || "tr",
+            label: s.label || (s.lang === "tr" ? "T\xFCrk\xE7e" : "\u0130ngilizce"),
+            url: s.src,
+            format: "vtt",
+            type: "text/vtt",
+            headers: {
+              "User-Agent": HEADERS["User-Agent"],
+              Referer: sPhpUrl,
+              Origin: "https://ddizimom.net"
+            }
+          };
+        });
+      }
+      var reqHeaders = {
+        "User-Agent": HEADERS["User-Agent"],
+        Referer: sPhpUrl,
+        Origin: "https://ddizimom.net"
+      };
+      var hints = {
+        notWebReady: true,
+        proxyHeaders: { request: reqHeaders }
+      };
+      var audios = pData.audios || [];
+      var hasDub = audios.some(function(a) {
+        return /dublaj|türkçe|^tr\b/i.test((a.label || "") + " " + (a.lang || ""));
+      });
+      var hasOrig = audios.some(function(a) {
+        return /orijinal|english|^en\b/i.test((a.label || "") + " " + (a.lang || ""));
+      });
+      if (hasDub && hasOrig) {
+        return [oneStream2("\u{1F1F9}\u{1F1F7} Dublaj"), oneStream2("\u{1F4AC} Orijinal + Altyaz\u0131")];
+      }
+      if (subs.length) {
+        return [oneStream2("\u{1F4AC} Altyaz\u0131l\u0131")];
+      }
+      return [oneStream2("HD")];
+    } catch (e) {
+      return [];
     }
-    var slug = href.split("/dizi/")[1].replace(/\/$/, "");
-    return BASE_URL + "/dizi/" + slug + "/sezon-" + season + "/bolum-" + episode;
   });
 }
 function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
   return __async(this, null, function* () {
     try {
-      var args = parseStreamArgs(tmdbId, mediaType, seasonNum, episodeNum);
-      tmdbId = args.id;
-      mediaType = args.mediaType;
-      seasonNum = args.season;
-      episodeNum = args.episode;
-      var isMovie = mediaType === "movie";
-      var season = parseInt(seasonNum, 10) || 1;
-      var episode = parseInt(episodeNum, 10) || 1;
-      if (typeof tmdbId === "string" && tmdbId.indexOf("cinemafly_dizimom:ep:") === 0) {
-        var epPath = tmdbId.replace("cinemafly_dizimom:ep:", "");
-        var epUrl = epPath.startsWith("http") ? epPath : BASE_URL + "/dizi/" + epPath.replace(/^\//, "");
-        return sortStreamsByQuality(
-          yield streamsFromEpisodePage(epUrl, BASE_URL, "", PROVIDER)
-        );
+      if (typeof tmdbId === "object" && tmdbId !== null) {
+        mediaType = tmdbId.type || mediaType;
+        seasonNum = tmdbId.season != null ? tmdbId.season : seasonNum;
+        episodeNum = tmdbId.episode != null ? tmdbId.episode : episodeNum;
+        tmdbId = tmdbId.id;
       }
-      var info = yield resolveMediaInfo(tmdbId, mediaType);
-      var labels = [info.origTitle, info.title].filter(Boolean);
-      if (!isMovie) {
-        var direct = yield directEpisodeUrl(info, season, episode);
-        if (direct) {
-          var got = yield streamsFromEpisodePage(
-            direct,
-            BASE_URL,
-            labels[0] || "",
-            PROVIDER
-          );
-          if (got.length) return sortStreamsByQuality(got);
+      if (typeof tmdbId === "string" && tmdbId.indexOf(":") !== -1 && tmdbId.indexOf(ID_PREFIX) !== 0) {
+        var parts = tmdbId.split(":");
+        if (parts.length >= 3) {
+          var s = parseInt(parts[parts.length - 2], 10);
+          var e = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(s)) seasonNum = s;
+          if (!isNaN(e)) episodeNum = e;
+          tmdbId = parts[0];
         }
       }
-      for (var q of labels) {
-        var pageUrl = yield searchEpisodeUrl(q, season, episode, isMovie);
-        if (!pageUrl) continue;
-        var streams = yield streamsFromEpisodePage(
-          pageUrl,
-          BASE_URL,
-          q,
-          PROVIDER
-        );
-        if (streams.length) return sortStreamsByQuality(streams);
+      if (!mediaType) {
+        mediaType = seasonNum !== void 0 && episodeNum !== void 0 ? "tv" : "movie";
+      }
+      if (typeof tmdbId === "string" && tmdbId.indexOf(ID_PREFIX + ":ep:") === 0) {
+        var epSlug = tmdbId.replace(ID_PREFIX + ":ep:", "").replace(/^\//, "");
+        var targetEpUrl = epSlug.startsWith("http") ? epSlug : BASE_URL + "/" + (epSlug.indexOf("dizi/") === 0 || epSlug.indexOf("film/") === 0 ? "" : "dizi/") + epSlug;
+        return yield resolvePilavyerStream(targetEpUrl);
+      }
+      if (typeof tmdbId === "string" && tmdbId.indexOf(ID_PREFIX + ":show:") === 0) {
+        var showSlug = tmdbId.replace(ID_PREFIX + ":show:", "").replace(/^\//, "");
+        var sNum = parseInt(seasonNum, 10) || 1;
+        var eNum = parseInt(episodeNum, 10) || 1;
+        var directEpUrl = BASE_URL + "/dizi/" + showSlug + "/sezon-" + sNum + "/bolum-" + eNum;
+        var directRes = yield resolvePilavyerStream(directEpUrl);
+        if (directRes && directRes.length) return directRes;
+      }
+      var info = yield resolveMediaInfo(tmdbId, mediaType);
+      var queries = [info.title, info.origTitle].filter(Boolean);
+      if (!queries.length) return [];
+      var season = parseInt(seasonNum, 10) || 1;
+      var episode = parseInt(episodeNum, 10) || 1;
+      var isMovie = mediaType === "movie";
+      for (var q of queries) {
+        var searchUrl = BASE_URL + "/ara?q=" + encodeURIComponent(q);
+        var sRes = yield fetch(searchUrl, { headers: HEADERS });
+        if (!sRes.ok) continue;
+        var sHtml = yield sRes.text();
+        var $ = cheerio.load(sHtml);
+        var normQ = normalizeTitle(q);
+        var matchedItems = [];
+        $("a").each(function(i, el) {
+          var href = $(el).attr("href") || "";
+          var isDiziLink = href.indexOf("/dizi/") !== -1 && href.indexOf("/sezon-") === -1;
+          var isFilmLink = href.indexOf("/film/") !== -1;
+          if (!isMovie && isDiziLink || isMovie && isFilmLink) {
+            var rawText = $(el).text().trim().replace(/\s+/g, " ");
+            var normText = normalizeTitle(rawText);
+            if (normText.indexOf(normQ) !== -1 || normQ.indexOf(normText) !== -1) {
+              matchedItems.push({ href, title: rawText });
+            }
+          }
+        });
+        for (var item of matchedItems.slice(0, 3)) {
+          var targetPageUrl = "";
+          if (isMovie) {
+            targetPageUrl = item.href.startsWith("http") ? item.href : BASE_URL + (item.href.startsWith("/") ? "" : "/") + item.href;
+          } else {
+            var slug = item.href.split("/dizi/")[1].replace(/\/$/, "");
+            targetPageUrl = BASE_URL + "/dizi/" + slug + "/sezon-" + season + "/bolum-" + episode;
+          }
+          var label = item.title.replace(/^Dizi\s+HD\s+(\d+\.\d+\s+)?/i, "").replace(/^Film\s+HD\s+(\d+\.\d+\s+)?/i, "").trim();
+          var streams = yield resolvePilavyerStream(targetPageUrl, label);
+          if (streams && streams.length) return streams;
+        }
       }
       return [];
     } catch (err) {
@@ -347,11 +345,163 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
     }
   });
 }
+function getCatalog(args) {
+  return __async(this, null, function* () {
+    try {
+      let pushFromHtml2 = function(html) {
+        var $ = cheerio.load(html);
+        $("a").each(function(i, el) {
+          var href = $(el).attr("href") || "";
+          if (href.indexOf("/dizi/") === -1 || href.indexOf("/sezon-") !== -1) return;
+          var slug = href.split("/dizi/")[1].replace(/\/$/, "");
+          if (!slug || seen[slug]) return;
+          seen[slug] = true;
+          var rawTitle = $(el).text().trim().replace(/\s+/g, " ");
+          var title = rawTitle.replace(/^Dizi\s+HD\s+(\d+\.\d+\s+)?/i, "").replace(/\s+\d{4}$/, "").trim() || slug;
+          var img = $(el).find("img").attr("src") || $(el).find("img").attr("data-src") || "";
+          var poster = img.indexOf("http") === 0 ? img : POSTER_FALLBACK;
+          metas.push({
+            id: ID_PREFIX + ":show:" + slug,
+            type: "tv",
+            name: title,
+            poster,
+            background: poster,
+            genres: ["Dizi", "CinemaFly"],
+            description: title + " \u2014 DiziMom"
+          });
+        });
+      };
+      var pushFromHtml = pushFromHtml2;
+      var query = args && args.search || args && args.extra && args.extra.search || args && args.query || "";
+      var metas = [];
+      var seen = {};
+      if (query) {
+        var searchUrl = BASE_URL + "/ara?q=" + encodeURIComponent(query);
+        var sRes = yield fetch(searchUrl, { headers: HEADERS });
+        if (!sRes.ok) return { metas: [] };
+        pushFromHtml2(yield sRes.text());
+        return { metas };
+      }
+      var res = yield fetch(BASE_URL + "/diziler", { headers: HEADERS });
+      if (!res.ok) return { metas: [] };
+      pushFromHtml2(yield res.text());
+      return { metas };
+    } catch (e) {
+      return { metas: [] };
+    }
+  });
+}
+function getMeta(args) {
+  return __async(this, null, function* () {
+    try {
+      var rawId = typeof args === "string" ? args : args && args.id ? args.id : "";
+      if (!rawId) return { meta: null };
+      if (rawId.indexOf(ID_PREFIX + ":show:") === 0) {
+        var showSlug = rawId.replace(ID_PREFIX + ":show:", "");
+        var showUrl = BASE_URL + "/dizi/" + showSlug;
+        var res = yield fetch(showUrl, { headers: HEADERS });
+        if (!res.ok) return { meta: null };
+        var html = yield res.text();
+        var $ = cheerio.load(html);
+        var titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || html.match(/<title>([^<]+)<\/title>/i);
+        var rawTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : showSlug;
+        var title = rawTitle.replace(/\s*izle\s*$/i, "").replace(/^Dizi\s+HD\s+(\d+\.\d+\s+)?/i, "").trim();
+        var ogImg = html.match(
+          /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+        );
+        var poster = ogImg ? ogImg[1] : POSTER_FALLBACK;
+        var desc = $('meta[name="description"]').attr("content") || title + " \u2014 CinemaFly DiziMom";
+        var videos = [];
+        var seen = {};
+        $("a").each(function(i, el) {
+          var href = $(el).attr("href") || "";
+          var m = href.match(/\/sezon-(\d+)\/bolum-(\d+)/);
+          if (!m) return;
+          var sNum = parseInt(m[1], 10);
+          var eNum = parseInt(m[2], 10);
+          var epKey = sNum + ":" + eNum;
+          if (seen[epKey]) return;
+          seen[epKey] = true;
+          videos.push({
+            id: ID_PREFIX + ":ep:" + showSlug + "/sezon-" + sNum + "/bolum-" + eNum,
+            title: $(el).text().trim().replace(/\s+/g, " ") || sNum + ". Sezon " + eNum + ". B\xF6l\xFCm",
+            season: sNum,
+            episode: eNum
+          });
+        });
+        videos.sort(function(a, b) {
+          return a.season - b.season || a.episode - b.episode;
+        });
+        return {
+          meta: {
+            id: rawId,
+            type: "tv",
+            name: title,
+            poster,
+            background: poster,
+            description: desc,
+            genres: ["Dizi", "CinemaFly"],
+            videos
+          }
+        };
+      }
+      if (rawId.indexOf(ID_PREFIX + ":ep:") === 0) {
+        var epSlug = rawId.replace(ID_PREFIX + ":ep:", "").replace(/^\//, "");
+        var epUrl = BASE_URL + "/dizi/" + epSlug;
+        var epRes = yield fetch(epUrl, { headers: HEADERS });
+        if (!epRes.ok) return { meta: null };
+        var epHtml = yield epRes.text();
+        var epTitleMatch = epHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || epHtml.match(/<title>([^<]+)<\/title>/i);
+        var epTitle = epTitleMatch ? epTitleMatch[1].replace(/<[^>]+>/g, "").trim() : "B\xF6l\xFCm";
+        var epOg = epHtml.match(
+          /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+        );
+        var epPoster = epOg ? epOg[1] : POSTER_FALLBACK;
+        var sM = epSlug.match(/sezon-(\d+)/i);
+        var eM = epSlug.match(/bolum-(\d+)/i);
+        return {
+          meta: {
+            id: rawId,
+            type: "tv",
+            name: epTitle,
+            poster: epPoster,
+            background: epPoster,
+            description: epTitle + " \u2014 CinemaFly DiziMom",
+            genres: ["Dizi", "CinemaFly"],
+            videos: [
+              {
+                id: rawId,
+                title: epTitle,
+                season: sM ? parseInt(sM[1], 10) : 1,
+                episode: eM ? parseInt(eM[1], 10) : 1
+              }
+            ]
+          }
+        };
+      }
+      return { meta: null };
+    } catch (e) {
+      return { meta: null };
+    }
+  });
+}
+if (typeof getStreams === "function") {
+  _origGetStreams = getStreams;
+  getStreams = function() {
+    return __async(this, arguments, function* () {
+      var res = yield _origGetStreams.apply(this, arguments);
+      return sortStreamsByQuality(res);
+    });
+  };
+}
+var _origGetStreams;
 if (typeof module !== "undefined") {
-  module.exports = { getStreams };
+  module.exports = wrapAll({ getStreams, getCatalog, getMeta }, cfgReady);
 }
 if (typeof globalThis !== "undefined") {
   globalThis.getStreams = getStreams;
+  globalThis.getCatalog = getCatalog;
+  globalThis.getMeta = getMeta;
 }
 
 if (typeof globalThis !== 'undefined' && typeof module !== 'undefined' && module.exports) {
